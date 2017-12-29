@@ -1,4 +1,4 @@
-const User = require('./model').User
+const User = require('./../model').User
 const passport = require('koa-passport')
 const localStrategy = require('passport-local')
 
@@ -6,9 +6,9 @@ const localStrategy = require('passport-local')
 passport.use(new localStrategy(async (username, password, done) => {
 	let where = {where: {email: username}}
 	try {
-		let result = (await User.findOne(where)).dataValues		
+		let result = await User.findOne(where)		
 		if (result) {
-            if (result.passwd == password) {
+            if (result.dataValues.passwd == password) {
                 return done(null, result)
             } else {
                 return done(null, false, '密码错误')
@@ -31,10 +31,10 @@ passport.deserializeUser(function (user, done) {
 })
 
 //auth router
-var fn_login = async (ctx, next) => {
-	return passport.authenticate('local', function (err, user, info, status) {
+let fn_login = async (ctx, next) => {
+	return passport.authenticate('local', async (err, user, info, status) => {
         if (user) {
-            ctx.login(user)
+            await ctx.login(user)
             ctx.body = {
             	status: 'success' 
             }
@@ -44,26 +44,26 @@ var fn_login = async (ctx, next) => {
     })(ctx, next)
 }
 
-var fn_logout = async (ctx) => {
+let fn_logout = async (ctx) => {
 	ctx.logout()
     ctx.body = {
     	status: 'success'
     }
 }
 
-var fn_signup = async (ctx) => {
-	let name = ctx.request.name
-	let email = ctx.request.email
-	let password = ctx.request.password
-	let gender = ctx.request.gender
+let fn_signup = async (ctx) => {
+	let name = ctx.request.body.name
+	let email = ctx.request.body.email
+	let password = ctx.request.body.password
+	let gender = ctx.request.body.gender
 	try {
 		let user  = await User.create({
 			name,
 			email,
-			password,
+			passwd: password,
 			gender
 		})
-		ctx.login(user)
+		await ctx.login(user)
 		ctx.body = {
 			status: 'success'
 		}		
@@ -72,8 +72,40 @@ var fn_signup = async (ctx) => {
 	}
 }
 
+let fn_status = async (ctx, next) => {
+    ctx.body = {
+    	isLogged: ctx.isAuthenticated(),
+    	user: ctx.state.user
+    }
+}
+
+let fn_signup_form = async (ctx, next) => {
+	ctx.body = `
+		<form action='/signup' method='POST'>
+			<div>username <input name='name'></div>
+			<div>email <input name='email'></div>
+			<div>password <input name='password'></div>
+			<div>gender <input name='gender'></div>
+			<button>submit</button>
+		</form>
+	`
+}
+
+let fn_login_form = async (ctx, next) => {
+	ctx.body = `
+		<form action='/login' method='POST'>
+			<div>username <input name='username'></div>
+			<div>password <input name='password'></div>
+			<button>submit</button>
+		</form>
+	`
+}
+
 module.exports = {
     'POST /login': fn_login,
     'GET /logout': fn_logout,
-    'POST /singup': fn_signup
+    'POST /signup': fn_signup,
+    'GET /status': fn_status,
+    'GET /signup': fn_signup_form,
+    'GET /login': fn_login_form
 }

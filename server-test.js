@@ -38,10 +38,10 @@ passport.deserializeUser(function (user, done) {
 const Router = require('koa-router')
 const router = new Router()
 router.post('/login', async (ctx, next) => {
-	return passport.authenticate('local', function (err, user, info, status) {
+	return passport.authenticate('local', async (err, user, info, status) => {
         if (user) {
+            await ctx.login(user)
             ctx.redirect('/')
-            ctx.login(user)
         } else {
             ctx.body = info
         }
@@ -83,7 +83,7 @@ router.post('/signup', async (ctx) => {
 			passwd: password,
 			gender
 		})
-		ctx.login(user)
+		await ctx.login(user)
 		ctx.body = {
 			status: 'success'
 		}		
